@@ -1,8 +1,9 @@
 package JWGet;
 
-import java.io.ByteArrayInputStream;
 import java.io.DataInputStream;
 import java.io.DataOutputStream;
+import java.io.File;
+import java.io.FileOutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
 import java.util.Scanner;
@@ -22,6 +23,8 @@ public class JWGet {
             System.err.println("Unsupported protocol, http only.");
             System.exit(1);
         }
+        System.out.println("Follow references recursively? (y/n)");
+        char recursive = scanner.nextLine().charAt(0);
         StringTokenizer tokenizer = new StringTokenizer(arg, "/");
         tokenizer.nextToken();
         String host = tokenizer.nextToken();
@@ -54,10 +57,26 @@ public class JWGet {
             String contentType = responseHeader.substring(
                     responseHeader.indexOf("Content-Type: ") + 14);
             contentType = contentType.substring(0, contentType.indexOf("\r\n"));
-            ByteArrayInputStream bais = new ByteArrayInputStream(responseBuffer, offset, read);
-            buffer = new byte[read - offset + 1];
-            bais.read(buffer);
-            
+            initWorkingDir(); // if it is the first time that the program is executed
+            File file = new File(Properties.DOWNLOADSPATH + getParentPath(path));
+            file.mkdirs();
+            file.setWritable(true);
+            System.out.println(request);
+            System.out.println(responseHeader);
+            DataOutputStream fileDos = new DataOutputStream(
+                    new FileOutputStream(Properties.DOWNLOADSDIR + path));
+            int received = read - offset + 1;
+            fileDos.write(responseBuffer, offset + 1, received);
+            while(received < size){
+                buffer = new byte[1024];
+                read = dis.read(buffer);
+                fileDos.write(buffer, 0, read);
+                fileDos.flush();
+                received += read;
+            }
+            fileDos.close();//file dos
+            dis.close();//socket dis
+            dos.close();//socket dos
         } catch(Exception ex){
             System.err.println("Fatal error: "+ex.getMessage());
             ex.printStackTrace();
@@ -65,14 +84,28 @@ public class JWGet {
         }
     }
     
+    private static void initWorkingDir(){
+        File file = new File(Properties.DOWNLOADSDIR);
+            file.mkdir();
+            file.setWritable(true);
+    }
+    
+    private static String getParentPath(String path){
+        int end = path.lastIndexOf("/");
+        return path.substring(0, end);
+    }
+    
     private static String getPath(StringTokenizer tokenizer){
+        String path;
         StringBuilder pathBuilder = new StringBuilder();
         pathBuilder.append("/");
         while(tokenizer.hasMoreTokens()){
             pathBuilder.append(tokenizer.nextToken());
             pathBuilder.append("/");
         }
-        return pathBuilder.toString();
+        path = pathBuilder.toString();
+        if(path.charAt(path.length() - 1) == '/') path += "index.html";
+        return path;
     }
     
     private static String getHttpRequest(String rsc, String host, int port){

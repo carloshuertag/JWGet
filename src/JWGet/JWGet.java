@@ -29,6 +29,7 @@ public class JWGet {
             host = host.substring(0, p);
         }
         String path = getPath(tokenizer);
+        initWorkingDir();
         String contentType = Utilities.getResource(host, port, path);
         if((recursive == 's' || recursive == 'S') && contentType.contains("htm")){
             // html file stored in <Utilities.DOWNLOADSDIR + path> analysis

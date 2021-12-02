@@ -77,6 +77,9 @@ public class JWGet {
             fileDos.close();//file dos
             dis.close();//socket dis
             dos.close();//socket dos
+            if((recursive == 's' || recursive == 'S') && contentType.contains("htm")){
+                //html file stored analysis
+            }
         } catch(Exception ex){
             System.err.println("Fatal error: "+ex.getMessage());
             ex.printStackTrace();

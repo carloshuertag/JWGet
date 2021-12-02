@@ -46,6 +46,7 @@ public class Utilities {
     
     public static String getResource(String host, int port, String path){
         String request = Utilities.getHttpRequest(path, host, port);
+        if(path.charAt(path.length() - 1) == '/') path += "index.html";
         String contentType = "";
         try{
             InetAddress ipAddress = InetAddress.getByName(host);
@@ -59,7 +60,7 @@ public class Utilities {
             byte[] responseBuffer = new byte[1024], buffer;
             int read = dis.read(responseBuffer);
             String responseHeader = new String(responseBuffer);
-            int offset = responseHeader.indexOf("\r\n\r\n") + 2;
+            int offset = responseHeader.indexOf("\r\n\r\n") + 4;
             responseHeader = responseHeader.substring(0, offset);
             String lengthHeaderField = responseHeader.substring(
                     responseHeader.indexOf("Content-Length: ") + 16);
@@ -76,8 +77,8 @@ public class Utilities {
             System.out.println(responseHeader);
             DataOutputStream fileDos = new DataOutputStream(
                     new FileOutputStream(Utilities.DOWNLOADSDIR + path));
-            int received = read - offset + 1;
-            fileDos.write(responseBuffer, offset + 1, received);
+            int received = read - offset;
+            fileDos.write(responseBuffer, offset, received);
             while(received < size){
                 buffer = new byte[1024];
                 read = dis.read(buffer);

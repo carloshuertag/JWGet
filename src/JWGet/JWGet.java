@@ -12,9 +12,11 @@ import java.util.ArrayList;
  */
 public class JWGet {
     
+    private static final ArrayList<String> tmp = new ArrayList<>();
+    private static final ArrayList<String> paths = new ArrayList<>();
+    
     public static void main(String args[]){
         Scanner scanner = new Scanner(System.in);
-        ArrayList<String> tmp = new ArrayList<>(), paths = new ArrayList<>();
         System.out.println("Enter URL: ");
         String arg = scanner.nextLine();
         if(!arg.toUpperCase().startsWith("HTTP")) {
@@ -34,53 +36,72 @@ public class JWGet {
         String path = getPath(tokenizer);
         initWorkingDir();
         String contentType = Utilities.getResource(host, port, path);
-        if((recursive == 'y' || recursive == 'Y') && contentType.contains("htm")){ //html file stored analysis
-            try {
-                BufferedReader br = new BufferedReader(new FileReader(Utilities.DOWNLOADSDIR + path));
-                String line;
-                int begin;
-                while ((line = br.readLine()) != null) {
-                    begin = line.indexOf("src");
+        if(path.charAt(path.length() - 1) == '/') path += "index.html";
+        if((recursive == 'y' || recursive == 'Y') && contentType.contains("htm"))
+            getRefencesRecursion(host, port, path);
+        else System.out.println("Resource now available at: " + path);
+    }
+    
+    private static void getRefencesRecursion(String host, int port, String path){
+        fillPathsList(path);
+        paths.forEach((pth) -> {
+            if(pth.endsWith(".htm") || pth.endsWith(".html")) {
+                Utilities.getResource(host, port, pth);
+                getRefencesRecursion(host, port, pth);
+            }
+            System.out.println(pth);
+            Utilities.getResource(host, port, pth);
+       });
+    }
+    
+    private static void fillTmpList(String path){
+        try {
+            BufferedReader br = new BufferedReader(new FileReader(Utilities.DOWNLOADSDIR + path));
+            String line;
+            int begin;
+            while ((line = br.readLine()) != null) {
+                begin = line.indexOf("src");
+                if(begin != -1){
+                    line = getHtmlPath(line, begin);
+                    if(line != null) tmp.add(line);
+                } else {
+                    begin = line.indexOf("href");
                     if(begin != -1){
                         line = getHtmlPath(line, begin);
-                        if(line != null) tmp.add(line);
-                    } else {
-                        begin = line.indexOf("href");
-                        if(begin != -1){
-                            line = getHtmlPath(line, begin);
-                            if(line != null && line.indexOf(".") != -1) tmp.add(line);
-                        }
+                        if(line != null && line.indexOf(".") != -1) tmp.add(line);
                     }
                 }
-                String newPath = Utilities.getParentPath(path);
-                int depth = 0;
-                boolean flag = true;
-                for(var pth: tmp){
-                    while(pth.startsWith("../")){
-                        depth++;
-                        pth = pth.substring(3);
-                    }
-                    while(depth-- > 0){
-                        newPath = Utilities.getParentPath(newPath);
-                        flag = true;
-                    }
-                    newPath = (flag) ? newPath: Utilities.getParentPath(path);
-                    pth = newPath + "/" + pth;
-                    paths.add(pth);
-                }
-                paths.forEach((e) -> {
-                    System.out.println(e);
-                });
-            } catch (Exception ex) {
-                System.err.println("Fatal error: "+ex.getMessage());
-                ex.printStackTrace();
-                System.exit(1);
             }
+            br.close();
+        } catch (Exception ex) {
+            System.err.println("Fatal error: "+ex.getMessage());
+            ex.printStackTrace();
+            System.exit(1);
+        }
+    }
+    
+    private static void fillPathsList(String path){
+        fillTmpList(path);
+        String newPath = Utilities.getParentPath(path);
+        int depth = 0;
+        boolean flag = false;
+        for(String pth: tmp){
+            while(pth.startsWith("../")){
+                depth++;
+                pth = pth.substring(3);
+            }
+            while(depth-- > 0){
+                newPath = Utilities.getParentPath(newPath);
+                flag = true;
+            }
+            newPath = (flag) ? newPath: Utilities.getParentPath(path);
+            if(newPath.charAt(newPath.length() - 1) != '/') newPath += "/";
+            pth = pth.startsWith("/") ? pth : newPath + path;
+            paths.add(pth);
         }
     }
     
     private static String getHtmlPath(String line, int begin){
-        System.out.println(line);
         String newPath = null;
         try {
             line = line.substring(begin);
@@ -91,7 +112,6 @@ public class JWGet {
         } catch(Exception ex) {
             newPath = null;
         }
-        System.out.println(newPath);
         return newPath;
     }
     
@@ -110,7 +130,6 @@ public class JWGet {
             pathBuilder.append("/");
         }
         path = pathBuilder.toString();
-        if(path.charAt(path.length() - 1) == '/') path += "index.html";
         return path;
     }
     

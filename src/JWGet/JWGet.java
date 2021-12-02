@@ -14,7 +14,7 @@ public class JWGet {
     
     public static void main(String args[]){
         Scanner scanner = new Scanner(System.in);
-        ArrayList<String> exlinks = new ArrayList<String>();
+        ArrayList<String> tmp = new ArrayList<>(), paths = new ArrayList<>();
         System.out.println("Enter URL: ");
         String arg = scanner.nextLine();
         if(!arg.toUpperCase().startsWith("HTTP")) {
@@ -34,28 +34,65 @@ public class JWGet {
         String path = getPath(tokenizer);
         initWorkingDir();
         String contentType = Utilities.getResource(host, port, path);
-        if((recursive == 's' || recursive == 'S') && contentType.contains("htm")){ //html file stored analysis
-                try {
-                     BufferedReader br = new BufferedReader(new FileReader(Utilities.DOWNLOADSDIR + path));
-                     String str;
-                     while ((str = br.readLine()) != null) {
-                        if(str.contains("src")){
-                            String nlink;
-                            //Obtain the string of the new link
-                            //exlinks.add(nlink);
+        if((recursive == 'y' || recursive == 'Y') && contentType.contains("htm")){ //html file stored analysis
+            try {
+                BufferedReader br = new BufferedReader(new FileReader(Utilities.DOWNLOADSDIR + path));
+                String line;
+                int begin;
+                while ((line = br.readLine()) != null) {
+                    begin = line.indexOf("src");
+                    if(begin != -1){
+                        line = getHtmlPath(line, begin);
+                        if(line != null) tmp.add(line);
+                    } else {
+                        begin = line.indexOf("href");
+                        if(begin != -1){
+                            line = getHtmlPath(line, begin);
+                            if(line != null && line.indexOf(".") != -1) tmp.add(line);
                         }
-                        else
-                            if(str.contains("href")){
-                                String nlink; 
-                                //Obtain the string of the new link
-                                //exlinks.add(nlink);
-                            }
-                     }
-                
-      } catch (Exception ex2) {
-            System.err.println("Fatal error: "+ex2.getMessage());
+                    }
+                }
+                String newPath = Utilities.getParentPath(path);
+                int depth = 0;
+                boolean flag = true;
+                for(var pth: tmp){
+                    while(pth.startsWith("../")){
+                        depth++;
+                        pth = pth.substring(3);
+                    }
+                    while(depth-- > 0){
+                        newPath = Utilities.getParentPath(newPath);
+                        flag = true;
+                    }
+                    newPath = (flag) ? newPath: Utilities.getParentPath(path);
+                    pth = newPath + "/" + pth;
+                    paths.add(pth);
+                }
+                paths.forEach((e) -> {
+                    System.out.println(e);
+                });
+            } catch (Exception ex) {
+                System.err.println("Fatal error: "+ex.getMessage());
+                ex.printStackTrace();
+                System.exit(1);
             }
         }
+    }
+    
+    private static String getHtmlPath(String line, int begin){
+        System.out.println(line);
+        String newPath = null;
+        try {
+            line = line.substring(begin);
+            line = line.replace(" ", "");
+            begin = line.indexOf("\"") + 1;
+            newPath = line.substring(begin);
+            newPath = newPath.substring(0, newPath.indexOf("\""));
+        } catch(Exception ex) {
+            newPath = null;
+        }
+        System.out.println(newPath);
+        return newPath;
     }
     
     private static void initWorkingDir(){

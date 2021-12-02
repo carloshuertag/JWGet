@@ -1,9 +1,11 @@
 package JWGet;
 
+import java.io.BufferedReader;
 import java.io.File;
+import java.io.FileReader;
 import java.util.Scanner;
 import java.util.StringTokenizer;
-
+import java.util.ArrayList;
 /**
  *
  * @author huert
@@ -12,6 +14,7 @@ public class JWGet {
     
     public static void main(String args[]){
         Scanner scanner = new Scanner(System.in);
+        ArrayList<String> exlinks = new ArrayList<String>();
         System.out.println("Enter URL: ");
         String arg = scanner.nextLine();
         if(!arg.toUpperCase().startsWith("HTTP")) {

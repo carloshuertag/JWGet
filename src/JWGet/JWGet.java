@@ -31,10 +31,27 @@ public class JWGet {
         String path = getPath(tokenizer);
         initWorkingDir();
         String contentType = Utilities.getResource(host, port, path);
-        if((recursive == 's' || recursive == 'S') && contentType.contains("htm")){
-            // html file stored in <Utilities.DOWNLOADSDIR + path> analysis
-            // seek for src= and href= html tags attributes
-            // if possible in a function to call rescursively (DFS)
+        if((recursive == 's' || recursive == 'S') && contentType.contains("htm")){ //html file stored analysis
+                try {
+                     BufferedReader br = new BufferedReader(new FileReader(Utilities.DOWNLOADSDIR + path));
+                     String str;
+                     while ((str = br.readLine()) != null) {
+                        if(str.contains("src")){
+                            String nlink;
+                            //Obtain the string of the new link
+                            //exlinks.add(nlink);
+                        }
+                        else
+                            if(str.contains("href")){
+                                String nlink; 
+                                //Obtain the string of the new link
+                                //exlinks.add(nlink);
+                            }
+                     }
+                
+      } catch (Exception ex2) {
+            System.err.println("Fatal error: "+ex2.getMessage());
+            }
         }
     }
     

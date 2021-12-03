@@ -1,7 +1,6 @@
 package JWGet;
 
 import java.io.BufferedReader;
-import java.io.DataOutputStream;
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.FileReader;
@@ -14,7 +13,8 @@ import java.util.ArrayList;
  */
 public class JWGet {
     
-    private static final ArrayList<String> paths = new ArrayList<>();
+    private static final ArrayList<String> paths = new ArrayList<>(),
+            gottenPaths = new ArrayList<String>();
     
     public static void main(String args[]){
         Scanner scanner = new Scanner(System.in);
@@ -46,25 +46,31 @@ public class JWGet {
     private static void getRefencesRecursion(String host, int port, String path, int count){
         if(count < Utilities.RECURSION_LIMIT){
             fillPathsList(path);
-            paths.forEach((pth) -> {
-                System.out.println(pth);
-                String contentType = Utilities.getResource(host, port, pth);
-                if(contentType.contains("htm")) {
-                    getRefencesRecursion(host, port, pth + "index.html", count + 1);
+            String pth;
+            for(int i = 0; i < paths.size(); i++) {
+                pth = paths.get(i);
+                if(!gottenPaths.contains(pth)){
+                    String newPath = pth;
+                    if(newPath.charAt(newPath.length() - 1) == '/')
+                        newPath += "index.html";
+                    Utilities.getResource(host, port, pth);
+                    gottenPaths.add(pth);
+                    if(newPath.contains("htm"))
+                        getRefencesRecursion(host, port, newPath, count + 1);
                 }
-            });
+            }
         }
     }
     
     private static void fillPathsList(String path){
         try {
-            BufferedReader br = new BufferedReader(new FileReader(Utilities.DOWNLOADSDIR + path));
-            //DataOutputStream dos = new DataOutputStream(new FileOutputStream(Utilities.DOWNLOADSDIR + path));
+            BufferedReader br = new BufferedReader(new FileReader(
+                    Utilities.DOWNLOADSDIR + path));
+            StringBuffer fileContent = new StringBuffer();
             String[] srcSplit, hrefSplit;
             String line, aux, tmp;
             int i;
             while ((line = br.readLine()) != null) {
-                aux = line;
                 srcSplit = line.split("src");
                 hrefSplit = line.split("href");
                 for(i = 1; i < srcSplit.length; i++) {
@@ -73,27 +79,30 @@ public class JWGet {
                     if(tmp != null) {
                         aux = replacePath(path, tmp);
                         if(!paths.contains(aux)) paths.add(aux);
-                        line = (aux.startsWith("/")) ? 
-                                    line.replaceFirst(tmp, Utilities.DOWNLOADSPATH + aux):
-                                    line.replaceFirst(tmp, Utilities.getParentPath(path) + aux);
+                        if (aux.startsWith("/"))
+                            line.replaceFirst(tmp, Utilities.DOWNLOADSPATH + aux);
                     }
                 }
                 for(i = 1; i < hrefSplit.length; i++) {
                     if(hrefSplit[i].contains("?")) continue;
                     tmp = getHtmlPath(hrefSplit[i]);
-                    if(tmp != null && (tmp.contains(".") || (tmp.charAt(tmp.length() - 1) == '/'))) {
+                    if(tmp != null && (tmp.contains(".") || (tmp.charAt(
+                            tmp.length() - 1) == '/'))) {
                         aux = replacePath(path, tmp);
                         if(!paths.contains(aux)) paths.add(aux);
-                        line = (aux.startsWith("/")) ? 
-                                line.replaceFirst(tmp, Utilities.DOWNLOADSPATH + aux):
-                                line.replaceFirst(tmp, Utilities.getParentPath(path) + aux);
+                        if (aux.startsWith("/"))
+                            line.replaceFirst(tmp, Utilities.DOWNLOADSPATH + aux);
                     }
                 }
-                //dos.writeUTF(line);
+                fileContent.append(line);
+                fileContent.append("\n");
             }
             br.close();
-            //dos.flush();
-            //dos.close();
+            FileOutputStream fos = new FileOutputStream(Utilities.DOWNLOADSDIR +
+                    path);
+            fos.write(fileContent.toString().getBytes());
+            fos.flush();
+            fos.close();
         } catch (Exception ex) {
             System.err.println("Fatal error: "+ex.getMessage());
             ex.printStackTrace();

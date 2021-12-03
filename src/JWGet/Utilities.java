@@ -1,8 +1,3 @@
-/*
- * To change this license header, choose License Headers in Project Utilities.
- * To change this template file, choose Tools | Templates
- * and open the template in the editor.
- */
 package JWGet;
 
 import java.io.DataInputStream;
@@ -11,15 +6,19 @@ import java.io.File;
 import java.io.FileOutputStream;
 import java.net.InetAddress;
 import java.net.Socket;
+import java.util.Date;
 
 /**
  *
  * @author huert
+ * test url: http://148.204.58.221/axel/aplicaciones/sockets/java/servidor/
  */
 public class Utilities {
     public static final int N_THREADS = 4;
+    public static final int RECURSION_LIMIT = 4;
     public static final String SLASH = "\\"; //Windows, use / for UNIX based
-    public static final String DOWNLOADSDIR = "Downloads";
+    public static final String DOWNLOADSDIR = "Downloads" + 
+            new Date().toString().replace(" ", "").replace(":", "");
     public static final String DOWNLOADSPATH = System.getProperty("user.dir") +
             SLASH + DOWNLOADSDIR;
     
@@ -46,6 +45,7 @@ public class Utilities {
     
     public static String getResource(String host, int port, String path){
         String request = Utilities.getHttpRequest(path, host, port);
+        System.out.println(request);
         if(path.charAt(path.length() - 1) == '/') path += "index.html";
         String contentType = "";
         try{
@@ -57,35 +57,44 @@ public class Utilities {
             dos.write(request.getBytes());
             dos.flush();
             DataInputStream dis = new DataInputStream(client.getInputStream());
-            byte[] responseBuffer = new byte[1024], buffer;
-            int read = dis.read(responseBuffer);
+            byte[] responseBuffer = new byte[1024], buffer = new byte[1024];
+            int read = dis.read(responseBuffer), size = 0;
             String responseHeader = new String(responseBuffer);
             int offset = responseHeader.indexOf("\r\n\r\n") + 4;
             responseHeader = responseHeader.substring(0, offset);
+            System.out.println(responseHeader);
             String lengthHeaderField = responseHeader.substring(
                     responseHeader.indexOf("Content-Length: ") + 16);
             lengthHeaderField = lengthHeaderField.substring(0,
                     lengthHeaderField.indexOf("\r\n"));
-            int size = Integer.parseInt(lengthHeaderField.replace(" ", ""));
+            try{
+                size = Integer.parseInt(lengthHeaderField.replace(" ", ""));
+            } catch(NumberFormatException ex){
+                size = 0;
+            }
             contentType = responseHeader.substring(
                     responseHeader.indexOf("Content-Type: ") + 14);
             contentType = contentType.substring(0, contentType.indexOf("\r\n"));
             File file = new File(Utilities.DOWNLOADSPATH + Utilities.getParentPath(path));
             file.mkdirs();
             file.setWritable(true);
-            System.out.println(request);
-            System.out.println(responseHeader);
             DataOutputStream fileDos = new DataOutputStream(
                     new FileOutputStream(Utilities.DOWNLOADSDIR + path));
             int received = read - offset;
             fileDos.write(responseBuffer, offset, received);
-            while(received < size){
-                buffer = new byte[1024];
-                read = dis.read(buffer);
-                fileDos.write(buffer, 0, read);
-                fileDos.flush();
-                received += read;
-            }
+            if(size != 0) while(received < size){
+                    buffer = new byte[1024];
+                    read = dis.read(buffer);
+                    fileDos.write(buffer, 0, read);
+                    fileDos.flush();
+                    received += read;
+                }
+            else while((read = dis.read(buffer))!=-1){
+                    buffer = new byte[1024];
+                    fileDos.write(buffer, 0, read);
+                    fileDos.flush();
+                    received += read;
+                }
             fileDos.close();//file dos
             dis.close();//socket dis
             dos.close();//socket dos

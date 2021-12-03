@@ -1,7 +1,9 @@
 package JWGet;
 
 import java.io.BufferedReader;
+import java.io.DataOutputStream;
 import java.io.File;
+import java.io.FileOutputStream;
 import java.io.FileReader;
 import java.util.Scanner;
 import java.util.StringTokenizer;
@@ -12,7 +14,6 @@ import java.util.ArrayList;
  */
 public class JWGet {
     
-    private static final ArrayList<String> tmp = new ArrayList<>();
     private static final ArrayList<String> paths = new ArrayList<>();
     
     public static void main(String args[]){
@@ -38,41 +39,61 @@ public class JWGet {
         String contentType = Utilities.getResource(host, port, path);
         if(path.charAt(path.length() - 1) == '/') path += "index.html";
         if((recursive == 'y' || recursive == 'Y') && contentType.contains("htm"))
-            getRefencesRecursion(host, port, path);
+            getRefencesRecursion(host, port, path, 0);
         else System.out.println("Resource now available at: " + path);
     }
     
-    private static void getRefencesRecursion(String host, int port, String path){
-        fillPathsList(path);
-        paths.forEach((pth) -> {
-            if(pth.endsWith(".htm") || pth.endsWith(".html")) {
-                Utilities.getResource(host, port, pth);
-                getRefencesRecursion(host, port, pth);
-            }
-            System.out.println(pth);
-            Utilities.getResource(host, port, pth);
-       });
+    private static void getRefencesRecursion(String host, int port, String path, int count){
+        if(count < Utilities.RECURSION_LIMIT){
+            fillPathsList(path);
+            paths.forEach((pth) -> {
+                System.out.println(pth);
+                String contentType = Utilities.getResource(host, port, pth);
+                if(contentType.contains("htm")) {
+                    getRefencesRecursion(host, port, pth + "index.html", count + 1);
+                }
+            });
+        }
     }
     
-    private static void fillTmpList(String path){
+    private static void fillPathsList(String path){
         try {
             BufferedReader br = new BufferedReader(new FileReader(Utilities.DOWNLOADSDIR + path));
-            String line;
-            int begin;
+            //DataOutputStream dos = new DataOutputStream(new FileOutputStream(Utilities.DOWNLOADSDIR + path));
+            String[] srcSplit, hrefSplit;
+            String line, aux, tmp;
+            int i;
             while ((line = br.readLine()) != null) {
-                begin = line.indexOf("src");
-                if(begin != -1){
-                    line = getHtmlPath(line, begin);
-                    if(line != null) tmp.add(line);
-                } else {
-                    begin = line.indexOf("href");
-                    if(begin != -1){
-                        line = getHtmlPath(line, begin);
-                        if(line != null && line.indexOf(".") != -1) tmp.add(line);
+                aux = line;
+                srcSplit = line.split("src");
+                hrefSplit = line.split("href");
+                for(i = 1; i < srcSplit.length; i++) {
+                    if(srcSplit[i].contains("?")) continue;
+                    tmp = getHtmlPath(srcSplit[i]);
+                    if(tmp != null) {
+                        aux = replacePath(path, tmp);
+                        if(!paths.contains(aux)) paths.add(aux);
+                        line = (aux.startsWith("/")) ? 
+                                    line.replaceFirst(tmp, Utilities.DOWNLOADSPATH + aux):
+                                    line.replaceFirst(tmp, Utilities.getParentPath(path) + aux);
                     }
                 }
+                for(i = 1; i < hrefSplit.length; i++) {
+                    if(hrefSplit[i].contains("?")) continue;
+                    tmp = getHtmlPath(hrefSplit[i]);
+                    if(tmp != null && (tmp.contains(".") || (tmp.charAt(tmp.length() - 1) == '/'))) {
+                        aux = replacePath(path, tmp);
+                        if(!paths.contains(aux)) paths.add(aux);
+                        line = (aux.startsWith("/")) ? 
+                                line.replaceFirst(tmp, Utilities.DOWNLOADSPATH + aux):
+                                line.replaceFirst(tmp, Utilities.getParentPath(path) + aux);
+                    }
+                }
+                //dos.writeUTF(line);
             }
             br.close();
+            //dos.flush();
+            //dos.close();
         } catch (Exception ex) {
             System.err.println("Fatal error: "+ex.getMessage());
             ex.printStackTrace();
@@ -80,35 +101,33 @@ public class JWGet {
         }
     }
     
-    private static void fillPathsList(String path){
-        fillTmpList(path);
+    private static String replacePath(String path, String pth){
         String newPath = Utilities.getParentPath(path);
         int depth = 0;
-        boolean flag = false;
-        for(String pth: tmp){
-            while(pth.startsWith("../")){
-                depth++;
-                pth = pth.substring(3);
-            }
-            while(depth-- > 0){
-                newPath = Utilities.getParentPath(newPath);
-                flag = true;
-            }
-            newPath = (flag) ? newPath: Utilities.getParentPath(path);
-            if(newPath.charAt(newPath.length() - 1) != '/') newPath += "/";
-            pth = pth.startsWith("/") ? pth : newPath + path;
-            paths.add(pth);
+        while(pth.startsWith("../")){
+            depth++;
+            pth = pth.substring(3);
         }
+        while(depth-- > 0) newPath = Utilities.getParentPath(newPath);
+        if(newPath.charAt(newPath.length() - 1) != '/') newPath += "/";
+        pth = pth.startsWith("/") ? pth : newPath + pth;
+        return pth;
     }
     
-    private static String getHtmlPath(String line, int begin){
+    private static String getHtmlPath(String line){
         String newPath = null;
+        int begin;
         try {
-            line = line.substring(begin);
             line = line.replace(" ", "");
             begin = line.indexOf("\"") + 1;
+            boolean sc = false;
+            if(begin == 0){
+                begin = line.indexOf("'") + 1;
+                sc = true;
+            }
             newPath = line.substring(begin);
-            newPath = newPath.substring(0, newPath.indexOf("\""));
+            newPath = (sc) ? newPath.substring(0, newPath.indexOf("'")):
+                    newPath.substring(0, newPath.indexOf("\""));
         } catch(Exception ex) {
             newPath = null;
         }
@@ -117,8 +136,8 @@ public class JWGet {
     
     private static void initWorkingDir(){
         File file = new File(Utilities.DOWNLOADSDIR);
-            file.mkdir();
-            file.setWritable(true);
+        file.mkdir();
+        file.setWritable(true);
     }
     
     private static String getPath(StringTokenizer tokenizer){

@@ -20,9 +20,10 @@ public class ClientPool extends Thread {
     protected final ExecutorService pool = Executors.newFixedThreadPool(
             Utilities.N_THREADS);
     private final ArrayList<String> paths = new ArrayList<>(),
-            gottenPaths = new ArrayList<String>();
+            gottenPaths;
 
     public ClientPool() {
+        this.gottenPaths = new ArrayList<>();
     }
 
     @Override
@@ -50,14 +51,14 @@ public class ClientPool extends Thread {
         String path = getPath(tokenizer, arg);
         initWorkingDir();
         String contentType = Utilities.getResource(host, port, path);
-        if(path.charAt(path.length() - 1) == '/') path += "index.html";
-        System.out.println(Utilities.DOWNLOADSPATH);
-        if((recursive == 'y' || recursive == 'Y') && contentType.contains("htm")){
-            getRefencesRecursion(host, port, path, 0);
-            System.exit(0);
+        if(path.charAt(path.length() - 1) == '/') {
+            path += "index.html";
         }
-        else System.out.println("Resource now available at: " +
-                Utilities.DOWNLOADSPATH + path);
+        if((recursive == 'y' || recursive == 'Y') && contentType.contains("htm")) {
+            getRefencesRecursion(host, port, path, 0);
+        }
+        System.out.println("Resources now available at: " + Utilities.DOWNLOADSPATH);
+        System.exit(0);
     }
     
     private void getRefencesRecursion(String host, int port, String path,
@@ -69,15 +70,22 @@ public class ClientPool extends Thread {
                 pth = paths.get(i);
                 if(!gottenPaths.contains(pth)){
                     String newPath = pth;
-                    if(newPath.charAt(newPath.length() - 1) == '/')
+                    if(newPath.charAt(newPath.length() - 1) == '/') {
                         newPath += "index.html";
+                    }
                     if(newPath.contains("htm")){
                         Utilities.getResource(host, port, pth);
                         gottenPaths.add(pth);
                         getRefencesRecursion(host, port, newPath, count + 1);
-                    } else pool.execute(new RscGet(host, port, pth));
+                    } else {
+                        pool.execute(new RscGet(host, port, pth));
+                    }
                 }
             }
+        } else if(count == Utilities.RECURSION_LIMIT &&
+                (path.charAt(path.length() - 1) == '/'
+                || path.contains("htm"))) {
+            fillPathsList(path);
         }
     }
     
@@ -93,26 +101,44 @@ public class ClientPool extends Thread {
                 srcSplit = line.split("src");
                 hrefSplit = line.split("href");
                 for(i = 1; i < srcSplit.length; i++) {
-                    if(srcSplit[i].contains("?")) continue;
+                    if(srcSplit[i].contains("?")) {
+                        continue;
+                    }
                     tmp = getHtmlPath(srcSplit[i]);
                     if(tmp != null) {
                         aux = replacePath(path, tmp);
-                        if(!paths.contains(aux)) paths.add(aux);
-                        if (tmp.startsWith("/"))
+                        if(!paths.contains(aux)) {
+                            paths.add(aux);
+                        }
+                        if (tmp.startsWith("/")) {
                             line = line.replaceFirst(tmp,
-                                    Utilities.DOWNLOADSPATH + aux);
+                                    (Utilities.DOWNLOADSPATH + aux).replace(
+                                            Utilities.SLASH, Utilities.ENCODING_SLASH));
+                        }
                     }
                 }
                 for(i = 1; i < hrefSplit.length; i++) {
-                    if(hrefSplit[i].contains("?")) continue;
+                    if(hrefSplit[i].contains("?")) {
+                        continue;
+                    }
                     tmp = getHtmlPath(hrefSplit[i]);
                     if(tmp != null && (tmp.contains(".") || (tmp.charAt(
                             tmp.length() - 1) == '/'))) {
                         aux = replacePath(path, tmp);
-                        if(!paths.contains(aux)) paths.add(aux);
-                        if (tmp.startsWith("/"))
-                            line = line.replaceFirst(tmp,
-                                    Utilities.DOWNLOADSPATH + aux);
+                        if(!paths.contains(aux)) {
+                            paths.add(aux);
+                        }
+                        if (tmp.startsWith("/")){
+                            aux = (Utilities.DOWNLOADSPATH + aux).replace(
+                                    Utilities.SLASH, Utilities.ENCODING_SLASH);
+                            if(tmp.endsWith("/")) {
+                                aux += "index.html";
+                            }
+                            line = line.replaceFirst(tmp, aux);
+                        } else if(tmp.endsWith("/")){
+                            aux = tmp + "index.html";
+                            line = line.replaceFirst(tmp, aux);
+                        }
                     }
                 }
                 fileContent.append(line);
@@ -125,28 +151,25 @@ public class ClientPool extends Thread {
             fos.flush();
             fos.close();
         } catch (Exception ex) {
-            System.err.println("Fatal error: "+ex.getMessage());
-            ex.printStackTrace();
-            System.exit(1);
         }
     }
     
     private String replacePath(String path, String pth){
+        if (pth.startsWith("/")) {
+            return pth;
+        }
         String newPath = Utilities.getParentPath(path);
-        if (pth.startsWith("/")) return pth;
         int depth = 0;
-        boolean flag = false;
         while(pth.startsWith("../")){
             depth++;
             pth = pth.substring(3);
-            flag = true;
         }
         while(depth-- > 0) newPath = Utilities.getParentPath(newPath);
         return newPath + pth;
     }
     
     private String getHtmlPath(String line){
-        String newPath = null;
+        String newPath;
         int begin;
         try {
             line = line.replace(" ", "");
@@ -177,9 +200,11 @@ public class ClientPool extends Thread {
         pathBuilder.append("/");
         while(tokenizer.hasMoreTokens()){
             pathBuilder.append(tokenizer.nextToken());
-            if(tokenizer.hasMoreTokens() || url.charAt(url.length() - 1) == '/')
+            if(tokenizer.hasMoreTokens() || url.charAt(url.length() - 1) == '/') {
                 pathBuilder.append("/");
-            else break;
+            } else {
+                break;
+            }
         }
         path = pathBuilder.toString();
         return path;

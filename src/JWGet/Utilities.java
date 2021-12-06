@@ -15,12 +15,13 @@ import java.util.Date;
  */
 public class Utilities {
     public static final int N_THREADS = 4;
-    public static final int RECURSION_LIMIT = 4;
+    public static final int RECURSION_LIMIT = 1;
     public static final String SLASH = "\\"; //Windows, use / for UNIX based
     public static final String DOWNLOADSDIR = "Downloads" + SLASH + 
             new Date().toString().replace(" ", "").replace(":", "");
     public static final String DOWNLOADSPATH = System.getProperty("user.dir") +
             SLASH + DOWNLOADSDIR;
+    public static final String ENCODING_SLASH = "\\\\"; // Windows
     
     public static String getParentPath(String path){
         int end = path.lastIndexOf("/");

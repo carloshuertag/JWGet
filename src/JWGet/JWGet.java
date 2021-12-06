@@ -112,15 +112,16 @@ public class JWGet {
     
     private static String replacePath(String path, String pth){
         String newPath = Utilities.getParentPath(path);
+        if (pth.startsWith("/")) return pth;
         int depth = 0;
+        boolean flag = false;
         while(pth.startsWith("../")){
             depth++;
             pth = pth.substring(3);
+            flag = true;
         }
         while(depth-- > 0) newPath = Utilities.getParentPath(newPath);
-        if(newPath.charAt(newPath.length() - 1) != '/') newPath += "/";
-        pth = pth.startsWith("/") ? pth : newPath + pth;
-        return pth;
+        return newPath + pth;
     }
     
     private static String getHtmlPath(String line){
@@ -155,7 +156,8 @@ public class JWGet {
         pathBuilder.append("/");
         while(tokenizer.hasMoreTokens()){
             pathBuilder.append(tokenizer.nextToken());
-            pathBuilder.append("/");
+            if(tokenizer.hasMoreTokens()) pathBuilder.append("/");
+            else break;
         }
         path = pathBuilder.toString();
         return path;

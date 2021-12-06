@@ -17,14 +17,14 @@ public class Utilities {
     public static final int N_THREADS = 4;
     public static final int RECURSION_LIMIT = 4;
     public static final String SLASH = "\\"; //Windows, use / for UNIX based
-    public static final String DOWNLOADSDIR = "Downloads" + 
+    public static final String DOWNLOADSDIR = "Downloads" + SLASH + 
             new Date().toString().replace(" ", "").replace(":", "");
     public static final String DOWNLOADSPATH = System.getProperty("user.dir") +
             SLASH + DOWNLOADSDIR;
     
     public static String getParentPath(String path){
         int end = path.lastIndexOf("/");
-        return path.substring(0, end);
+        return path.substring(0, ++end);
     }
     
     public static String getHttpRequest(String rsc, String host, int port){
@@ -61,7 +61,7 @@ public class Utilities {
             String responseHeader = new String(responseBuffer);
             int offset = responseHeader.indexOf("\r\n\r\n") + 4;
             responseHeader = responseHeader.substring(0, offset);
-            if(!responseHeader.contains("200 OK")) return "";
+            if(!responseHeader.toUpperCase().contains("200 OK")) return "";
             String lengthHeaderField = responseHeader.substring(
                     responseHeader.indexOf("Content-Length: ") + 16);
             lengthHeaderField = lengthHeaderField.substring(0,

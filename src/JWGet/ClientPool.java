@@ -47,16 +47,21 @@ public class ClientPool extends Thread {
             port = Integer.parseInt(host.substring(p + 1, host.length()));
             host = host.substring(0, p);
         }
-        String path = getPath(tokenizer);
+        String path = getPath(tokenizer, arg);
         initWorkingDir();
         String contentType = Utilities.getResource(host, port, path);
         if(path.charAt(path.length() - 1) == '/') path += "index.html";
-        if((recursive == 'y' || recursive == 'Y') && contentType.contains("htm"))
+        System.out.println(Utilities.DOWNLOADSPATH);
+        if((recursive == 'y' || recursive == 'Y') && contentType.contains("htm")){
             getRefencesRecursion(host, port, path, 0);
-        else System.out.println("Resource now available at: " + path);
+            System.exit(0);
+        }
+        else System.out.println("Resource now available at: " +
+                Utilities.DOWNLOADSPATH + path);
     }
     
-    private void getRefencesRecursion(String host, int port, String path, int count){
+    private void getRefencesRecursion(String host, int port, String path,
+            int count){
         if(count < Utilities.RECURSION_LIMIT){
             fillPathsList(path);
             String pth;
@@ -93,8 +98,9 @@ public class ClientPool extends Thread {
                     if(tmp != null) {
                         aux = replacePath(path, tmp);
                         if(!paths.contains(aux)) paths.add(aux);
-                        if (aux.startsWith("/"))
-                            line.replaceFirst(tmp, Utilities.DOWNLOADSPATH + aux);
+                        if (tmp.startsWith("/"))
+                            line = line.replaceFirst(tmp,
+                                    Utilities.DOWNLOADSPATH + aux);
                     }
                 }
                 for(i = 1; i < hrefSplit.length; i++) {
@@ -104,8 +110,9 @@ public class ClientPool extends Thread {
                             tmp.length() - 1) == '/'))) {
                         aux = replacePath(path, tmp);
                         if(!paths.contains(aux)) paths.add(aux);
-                        if (aux.startsWith("/"))
-                            line.replaceFirst(tmp, Utilities.DOWNLOADSPATH + aux);
+                        if (tmp.startsWith("/"))
+                            line = line.replaceFirst(tmp,
+                                    Utilities.DOWNLOADSPATH + aux);
                     }
                 }
                 fileContent.append(line);
@@ -126,15 +133,16 @@ public class ClientPool extends Thread {
     
     private String replacePath(String path, String pth){
         String newPath = Utilities.getParentPath(path);
+        if (pth.startsWith("/")) return pth;
         int depth = 0;
+        boolean flag = false;
         while(pth.startsWith("../")){
             depth++;
             pth = pth.substring(3);
+            flag = true;
         }
         while(depth-- > 0) newPath = Utilities.getParentPath(newPath);
-        if(newPath.charAt(newPath.length() - 1) != '/') newPath += "/";
-        pth = pth.startsWith("/") ? pth : newPath + pth;
-        return pth;
+        return newPath + pth;
     }
     
     private String getHtmlPath(String line){
@@ -163,13 +171,15 @@ public class ClientPool extends Thread {
         file.setWritable(true);
     }
     
-    private String getPath(StringTokenizer tokenizer){
+    private String getPath(StringTokenizer tokenizer, String url){
         String path;
         StringBuilder pathBuilder = new StringBuilder();
         pathBuilder.append("/");
         while(tokenizer.hasMoreTokens()){
             pathBuilder.append(tokenizer.nextToken());
-            pathBuilder.append("/");
+            if(tokenizer.hasMoreTokens() || url.charAt(url.length() - 1) == '/')
+                pathBuilder.append("/");
+            else break;
         }
         path = pathBuilder.toString();
         return path;
